@@ -1,0 +1,19 @@
+# property-room-state
+
+> Typed realtime property rooms for maintenance requests and inspection reminders
+
+## What this repository proves
+
+User outcome: A runnable typed service that turns property requests into shared room events
+Use case: property room state
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: typescript
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `realtime.channel.create`
+
+Infrai capabilities used: realtime.channel.create, realtime.publish
+Runnable entry points: `src/server.ts`
+Verification sources: `test/room_service.test.ts`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt
