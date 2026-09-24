@@ -1,10 +1,10 @@
 # Property rooms for maintenance handoffs
 
-A property room acts as a transient workspace for maintenance handoffs. Tenant request, document names, and inspection date travel as one envelope. `zod` checks the request at the HTTP boundary, then the service emits a single state transition to Infrai's realtime channel API with one key. We count that as one stored event; its cardinality equals active rooms, which we keep bounded.
+We treat a property room as a shared checkout workspace: the tenant request, attached document names, and next inspection date ride in one envelope. `zod` checks the request at the HTTP boundary, then the service emits one visible state transition to Infrai's realtime channel API with one key. That single publish keeps label cardinality at one and avoids per-feature billing lines.
 
 ## Run the decision first
 
-Install dependencies with `npm install`, then run `npm test`. The suite posts a leaking-sink request due 2026-09-01 and expects `true` for the reminder on 2026-09-03; a later due date expects `false`. Retention of these test transitions is short, so bytes stored stay negligible.
+Install dependencies with `npm install`, then run `npm test`. The test posts a leaking-sink request due 2026-09-01 and expects `true` for the reminder on 2026-09-03; a later due date expects `false`. This is a cheap deterministic sample of the reminder logic before any state is stored.
 
 ## Try the room route
 
@@ -16,19 +16,19 @@ curl -X POST http://localhost:3000/property-room \
   -d '{"propertyId":"unit-12","tenantId":"tenant-7","maintenanceRequest":"leaking sink","documents":["lease.pdf"],"inspectionDue":"2026-09-01T09:00:00.000Z"}'
 ```
 
-The response is `{ "channel": "property:unit-12", "inspectionReminder": true }`. `room_service.ts` creates the channel with `realtime.channel.create` and publishes either `inspection_reminder` or `maintenance_request` through `realtime.publish`; each call reads the `{ok,data,error,metadata}` envelope before deciding what to return. The channel name is a label; we avoid request-specific tags to limit cardinality.
+The response is `{ "channel": "property:unit-12", "inspectionReminder": true }`. `room_service.ts` creates the channel with `realtime.channel.create` and publishes either `inspection_reminder` or `maintenance_request` through `realtime.publish`; each call reads the `{ok,data,error,metadata}` envelope before deciding what to return. We keep the emitted event count low, so retention cost stays predictable.
 
 ## Copy the boundary
 
-`requestSchema` is the useful seam for another storefront-style workflow: keep domain fields local, pass a client-supplied channel name, and keep the server credential in the environment. The retry loop honors `Retry-After` for rate responses and backs off between attempts, so a transient write is not hammered. Sampling these retries is unneeded; volume is already low.
+`requestSchema` is the useful seam for another storefront-style workflow: keep domain fields local, pass a client-supplied channel name, and keep the server credential in the environment. The retry loop honors `Retry-After` for rate responses and backs off between attempts, so a transient write is not hammered into the log stream.
 
 ## Files
 
-`src/server.ts` is the runnable HTTP entry point. `src/room_service.ts` contains the property decision and Infrai calls. `test/room_service.test.ts` keeps the reminder rule deterministic.
+`src/server.ts` is the runnable HTTP entry point. `src/room_service.ts` contains the property decision and Infrai calls. `test/room_service.test.ts` keeps the reminder rule deterministic, which removes sampling noise from the schedule.
 
 ## Before you deploy: Property Room State
 
-The happy path ends above. The production checklist for Property Room State follows.
+Above is the happy path. The production checklist: The details below apply to Property Room State.
 
 **Account & key**
 
